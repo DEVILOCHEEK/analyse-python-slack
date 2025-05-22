@@ -1,60 +1,51 @@
-name: Daily Flake8 Static Analysis
+name: Flake8 Static Analysis with Slack Notification
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # запуск щодня о 09:00 UTC
-  workflow_dispatch:      # ручний запуск через UI
+    - cron: '0 9 * * *'  # щодня 09:00 UTC
+  workflow_dispatch:
 
 jobs:
   flake8-check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install dependencies and jq
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
           python -m pip install --upgrade pip
           pip install flake8
 
-      - id: flake8
+      - name: Run flake8 and save report
+        id: flake8
         run: |
           flake8 app --exit-zero > flake8_report.txt
-          echo "report<<EOF" >> $GITHUB_OUTPUT
-          cat flake8_report.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
+          echo "::set-output name=report::$(head -n 20 flake8_report.txt | sed 's/%/%25/g; s/\n/%0A/g; s/\r/%0D/g')"
           if [ -s flake8_report.txt ]; then
-            echo "has_errors=true" >> $GITHUB_OUTPUT
+            echo "::set-output name=has_errors::true"
           else
-            echo "has_errors=false" >> $GITHUB_OUTPUT
+            echo "::set-output name=has_errors::false"
           fi
 
-      - name: Debug outputs
+      - name: Prepare Slack message
+        id: slack_message
         run: |
-          echo "HAS_ERRORS='${{ steps.flake8.outputs.has_errors }}'"
-          echo "REPORT='${{ steps.flake8.outputs.report }}'"
+          if [ "${{ steps.flake8.outputs.has_errors }}" = "true" ]; then
+            echo "::set-output name=message::Flake8 found errors:\n$(head -n 20 flake8_report.txt)"
+          else
+            echo "::set-output name=message::Flake8 check passed with no issues."
+          fi
 
-      - name: Send result to Slack
-        if: always()
+      - name: Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          custom_message: ${{ steps.slack_message.outputs.message }}
+          fields: repo,message,commit,author
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPORT: ${{ steps.flake8.outputs.report }}
-          HAS_ERRORS: ${{ steps.flake8.outputs.has_errors }}
-        run: |
-          if [ "${HAS_ERRORS:-false}" = "true" ]; then
-            TEXT=":x: Flake8 static analysis found issues:\n\`\`\`${REPORT}\`\`\`"
-          else
-            TEXT=":white_check_mark: Flake8 static analysis passed with no issues."
-          fi
-
-          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
-          curl -s -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
