@@ -26,10 +26,10 @@ jobs:
         run: |
           mkdir -p reports
 
-          # Всі python-файли в папці app (змінити шлях, якщо потрібно)
+          # Всі python-файли в папці app
           all_files=$(find app -name '*.py' | sort)
 
-          # Запуск flake8, запис помилок у файл
+          # Запуск flake8
           flake8 app --exit-zero > reports/flake8.txt || true
 
           if [ -s reports/flake8.txt ]; then
@@ -40,7 +40,7 @@ jobs:
             errors_files=""
           fi
 
-          # Отримаємо файли без помилок (перевірені мінус файли з помилками)
+          # Отримаємо файли без помилок
           if [ "$errors_files" != "" ]; then
             no_errors_files=$(comm -23 <(echo "$all_files") <(echo "$errors_files"))
           else
@@ -61,7 +61,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
-          SLACK_TITLE: "Flake8 Лінтинг — ✅ Файли без помилок"
+          SLACK_TITLE: "Flake8 — ✅ Файли без помилок"
           SLACK_MESSAGE: |
             Перевірені файли без помилок:
             ${{ steps.flake8.outputs.no_errors }}
@@ -72,7 +72,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Flake8 Лінтинг — ❌ Файли з помилками"
+          SLACK_TITLE: "Flake8 — ❌ Файли з помилками"
           SLACK_MESSAGE: |
             Файли з помилками:
             ${{ steps.flake8.outputs.errors }}
