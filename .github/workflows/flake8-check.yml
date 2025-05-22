@@ -2,7 +2,7 @@ name: Flake8 Static Analysis with Slack Notification
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # щодня 09:00 UTC
+    - cron: '0 9 * * *'  # щодня о 09:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -25,27 +25,30 @@ jobs:
         id: flake8
         run: |
           flake8 app --exit-zero > flake8_report.txt
-          echo "::set-output name=report::$(head -n 20 flake8_report.txt | sed 's/%/%25/g; s/\n/%0A/g; s/\r/%0D/g')"
+          # Замінимо символи, щоб коректно передати в тексті
+          REPORT=$(head -n 20 flake8_report.txt | sed 's/%/%25/g; s/\n/%0A/g; s/\r/%0D/g')
+          echo "report=$REPORT" >> $GITHUB_OUTPUT
+
           if [ -s flake8_report.txt ]; then
-            echo "::set-output name=has_errors::true"
+            echo "has_errors=true" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=has_errors::false"
+            echo "has_errors=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Prepare Slack message
-        id: slack_message
+      - name: Prepare Slack text
+        id: slack_text
         run: |
           if [ "${{ steps.flake8.outputs.has_errors }}" = "true" ]; then
-            echo "::set-output name=message::Flake8 found errors:\n$(head -n 20 flake8_report.txt)"
+            echo "text=🛑 Flake8 found errors:\n\`\`\`${{ steps.flake8.outputs.report }}\`\`\`" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=message::Flake8 check passed with no issues."
+            echo "text=✅ Flake8 check passed with no issues." >> $GITHUB_OUTPUT
           fi
 
       - name: Slack notification
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          custom_message: ${{ steps.slack_message.outputs.message }}
+          text: ${{ steps.slack_text.outputs.text }}
           fields: repo,message,commit,author
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
