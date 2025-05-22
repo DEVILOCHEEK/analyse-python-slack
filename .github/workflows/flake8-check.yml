@@ -29,7 +29,6 @@ jobs:
 
           if [ -s reports/flake8.txt ]; then
             echo "has_errors=true" >> $GITHUB_OUTPUT
-            # Отримуємо унікальні імена файлів з помилками
             errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ',' | sed 's/,$//')
             echo "errors=$errors" >> $GITHUB_OUTPUT
           else
@@ -37,7 +36,7 @@ jobs:
             echo "errors=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Send Slack Notification if there are errors
+      - name: Slack Notification: Errors found
         if: steps.flake8.outputs.has_errors == 'true'
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -46,7 +45,7 @@ jobs:
           SLACK_TITLE: "Flake8 Лінтинг — ❌ ПОМИЛКИ"
           SLACK_MESSAGE: "❌ Помилки в таких файлах: ${{ steps.flake8.outputs.errors }}"
 
-      - name: Send Slack Notification if all is OK
+      - name: Slack Notification: All good
         if: steps.flake8.outputs.has_errors == 'false'
         uses: rtCamp/action-slack-notify@v2
         env:
