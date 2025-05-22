@@ -21,47 +21,36 @@ jobs:
       - name: Install flake8
         run: pip install flake8
 
-      - name: Run flake8 per file with full report
+      - name: Run flake8 and capture output
         id: flake8
         run: |
           mkdir -p reports
-          > reports/flake8_full_report.txt
-          has_errors="false"
+          flake8 app --exit-zero > reports/flake8.txt || true
 
-          for file in $(find app -type f -name "*.py"); do
-            output=$(flake8 "$file")
-            if [ -z "$output" ]; then
-              echo "✅ $file — без помилок." >> reports/flake8_full_report.txt
-            else
-              has_errors="true"
-              echo "❌ $file:" >> reports/flake8_full_report.txt
-              echo "$output" >> reports/flake8_full_report.txt
-              echo "" >> reports/flake8_full_report.txt
-            fi
-          done
+          if [ -s reports/flake8.txt ]; then
+            echo "has_errors=true" >> $GITHUB_OUTPUT
+            # Отримуємо унікальні імена файлів з помилками
+            errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ',' | sed 's/,$//')
+            echo "errors=$errors" >> $GITHUB_OUTPUT
+          else
+            echo "has_errors=false" >> $GITHUB_OUTPUT
+            echo "errors=" >> $GITHUB_OUTPUT
+          fi
 
-          echo "has_errors=$has_errors" >> $GITHUB_ENV
-
-      - name: Upload flake8 report
-        uses: actions/upload-artifact@v3
-        with:
-          name: flake8-full-report
-          path: reports/flake8_full_report.txt
-
-      - name: Slack: found issues
-        if: env.has_errors == 'true'
+      - name: Send Slack Notification if there are errors
+        if: steps.flake8.outputs.has_errors == 'true'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Flake8 ❌ Помилки в коді"
-          SLACK_MESSAGE: "Знайдено проблеми. Перевір звіт: flake8_full_report.txt."
+          SLACK_TITLE: "Flake8 Лінтинг — ❌ ПОМИЛКИ"
+          SLACK_MESSAGE: "❌ Помилки в таких файлах: ${{ steps.flake8.outputs.errors }}"
 
-      - name: Slack: all clear
-        if: env.has_errors == 'false'
+      - name: Send Slack Notification if all is OK
+        if: steps.flake8.outputs.has_errors == 'false'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
-          SLACK_TITLE: "Flake8 ✅ Код чистий"
-          SLACK_MESSAGE: "Жодних проблем не виявлено. Усі файли без помилок."
+          SLACK_TITLE: "Flake8 Лінтинг — ✅ Успішно"
+          SLACK_MESSAGE: "✅ Ніяких помилок не знайдено"
