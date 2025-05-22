@@ -40,7 +40,7 @@ jobs:
             fi
           done
 
-          echo "has_errors=$has_errors" >> $GITHUB_OUTPUT
+          echo "has_errors=$has_errors" >> "$GITHUB_OUTPUT"
 
       - name: Upload full report
         uses: actions/upload-artifact@v3
@@ -55,7 +55,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
           SLACK_TITLE: "Flake8 ❌ Помилки в коді"
-          SLACK_MESSAGE: "Знайдено проблеми. Дивись артефакт flake8_full_report.txt."
+          SLACK_MESSAGE: "Знайдено проблеми. Перевір звіт: flake8_full_report.txt."
 
       - name: Slack: all clear
         if: steps.flake8.outputs.has_errors == 'false'
@@ -64,4 +64,4 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
           SLACK_TITLE: "Flake8 ✅ Код чистий"
-          SLACK_MESSAGE: "Жодних проблем не виявлено. Всі файли без помилок."
+          SLACK_MESSAGE: "Жодних проблем не виявлено. Усі файли без помилок."
