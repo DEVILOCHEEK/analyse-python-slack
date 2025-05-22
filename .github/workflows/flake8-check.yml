@@ -21,18 +21,29 @@ jobs:
       - name: Install flake8
         run: pip install flake8
 
-      - name: Run flake8 and capture output
+      - name: Run flake8 and gather info
         id: flake8
         run: |
           mkdir -p reports
+
+          # Отримати всі файли .py у папці app (якщо у вас інша - змініть)
+          all_files=$(find app -name '*.py' | sort | tr '\n' ', ' | sed 's/, $//')
+
+          # Запуск flake8 з exit-zero щоб завжди був вихід
           flake8 app --exit-zero > reports/flake8.txt || true
 
           if [ -s reports/flake8.txt ]; then
-            echo "has_errors=true" >> $GITHUB_OUTPUT
-            echo "errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ', ')" >> $GITHUB_OUTPUT
+            has_errors=true
+            # Отримати унікальні імена файлів з помилками
+            errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ', ' | sed 's/, $//')
           else
-            echo "has_errors=false" >> $GITHUB_OUTPUT
+            has_errors=false
+            errors=""
           fi
+
+          echo "has_errors=$has_errors" >> $GITHUB_OUTPUT
+          echo "errors=$errors" >> $GITHUB_OUTPUT
+          echo "all_files=$all_files" >> $GITHUB_OUTPUT
 
       - name: Send Slack Notification if there are errors
         if: steps.flake8.outputs.has_errors == 'true'
@@ -40,8 +51,10 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Flake8 — ❌ ПОМИЛКИ"
-          SLACK_MESSAGE: "❌ Помилки в таких файлах: ${{ steps.flake8.outputs.errors }}"
+          SLACK_TITLE: "Flake8 Лінтинг — ❌ ПОМИЛКИ"
+          SLACK_MESSAGE: |
+            ✅ Перевірені файли: ${{ steps.flake8.outputs.all_files }}
+            ❌ Помилки знайдені у файлах: ${{ steps.flake8.outputs.errors }}
 
       - name: Send Slack Notification if all is OK
         if: steps.flake8.outputs.has_errors == 'false'
@@ -49,5 +62,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
-          SLACK_TITLE: "Flake8 — ✅ Успішно"
-          SLACK_MESSAGE: "✅ Ніяких помилок не знайдено"
+          SLACK_TITLE: "Flake8 Лінтинг — ✅ Успішно"
+          SLACK_MESSAGE: |
+            ✅ Перевірені файли: ${{ steps.flake8.outputs.all_files }}
+            ✅ Помилок не знайдено
