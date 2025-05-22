@@ -1,0 +1,51 @@
+name: Daily Flake8 Static Analysis
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # щодня о 09:00 UTC
+  workflow_dispatch:      # додатково можна запускати вручну
+
+jobs:
+  flake8-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run flake8 and save output
+        id: flake8
+        run: |
+          flake8 app --exit-zero > flake8_report.txt
+          echo "::set-output name=report::$(cat flake8_report.txt)"
+          if [ -s flake8_report.txt ]; then
+            echo "::set-output name=has_errors::true"
+          else
+            echo "::set-output name=has_errors::false"
+          fi
+
+      - name: Send result to Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPORT: ${{ steps.flake8.outputs.report }}
+          HAS_ERRORS: ${{ steps.flake8.outputs.has_errors }}
+        run: |
+          if [ "$HAS_ERRORS" = "true" ]; then
+            TEXT=":x: Flake8 static analysis found issues:\n\`\`\`${REPORT}\`\`\`"
+          else
+            TEXT=":white_check_mark: Flake8 static analysis passed with no issues."
+          fi
+
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
+          curl -s -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
