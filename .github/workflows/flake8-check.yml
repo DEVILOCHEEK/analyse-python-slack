@@ -40,7 +40,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Flake8 Лінтинг — ❌ ПОМИЛКИ"
+          SLACK_TITLE: "Flake8 — ❌ ПОМИЛКИ"
           SLACK_MESSAGE: "❌ Помилки в таких файлах: ${{ steps.flake8.outputs.errors }}"
 
       - name: Send Slack Notification if all is OK
@@ -49,5 +49,5 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
-          SLACK_TITLE: "Flake8 Лінтинг — ✅ Успішно"
+          SLACK_TITLE: "Flake8 — ✅ Успішно"
           SLACK_MESSAGE: "✅ Ніяких помилок не знайдено"
