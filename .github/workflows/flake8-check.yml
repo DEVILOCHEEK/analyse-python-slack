@@ -2,7 +2,7 @@ name: Flake8 Static Analysis with Slack Notification
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # щодня о 09:00 UTC
+    - cron: '0 9 * * *'  # каждый день в 09:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -16,19 +16,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flake8
+      - name: Install flake8
+        run: pip install flake8
 
-      - name: Run flake8 and save report
+      - name: Run flake8
+        id: flake8
         run: |
-          flake8 app --exit-zero > flake8_report.txt || true
+          # Запускаем flake8, сохраняем вывод и возвращаем всегда 0 чтобы не ломать job
+          flake8 app > flake8_output.txt || true
 
-      - name: Check if flake8 found errors
-        id: check_errors
-        run: |
-          if [ -s flake8_report.txt ]; then
+          if [ -s flake8_output.txt ]; then
             echo "has_errors=true" >> $GITHUB_OUTPUT
           else
             echo "has_errors=false" >> $GITHUB_OUTPUT
@@ -38,7 +35,7 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: ${{ steps.check_errors.outputs.has_errors == 'true' && '🛑 Flake8 found issues. Please check the workflow logs.' || '✅ Flake8 check passed successfully.' }}
+          text: ${{ steps.flake8.outputs.has_errors == 'true' && '🛑 Flake8 found issues. Please check the workflow logs.' || '✅ Flake8 check passed successfully.' }}
           fields: repo,message,commit,author
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
