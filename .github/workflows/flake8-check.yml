@@ -40,16 +40,16 @@ jobs:
             fi
           done
 
-          echo "has_errors=$has_errors" >> "$GITHUB_OUTPUT"
+          echo "has_errors=$has_errors" >> $GITHUB_ENV
 
-      - name: Upload full report
+      - name: Upload flake8 report
         uses: actions/upload-artifact@v3
         with:
           name: flake8-full-report
           path: reports/flake8_full_report.txt
 
       - name: Slack: found issues
-        if: steps.flake8.outputs.has_errors == 'true'
+        if: env.has_errors == 'true'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -58,7 +58,7 @@ jobs:
           SLACK_MESSAGE: "Знайдено проблеми. Перевір звіт: flake8_full_report.txt."
 
       - name: Slack: all clear
-        if: steps.flake8.outputs.has_errors == 'false'
+        if: env.has_errors == 'false'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
