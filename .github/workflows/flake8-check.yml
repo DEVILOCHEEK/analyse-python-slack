@@ -29,27 +29,25 @@ jobs:
 
           if [ -s reports/flake8.txt ]; then
             echo "has_errors=true" >> $GITHUB_OUTPUT
-            errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ',' | sed 's/,$//')
-            echo "errors=$errors" >> $GITHUB_OUTPUT
+            echo "errors=$(cut -d':' -f1 reports/flake8.txt | sort -u | tr '\n' ', ')" >> $GITHUB_OUTPUT
           else
             echo "has_errors=false" >> $GITHUB_OUTPUT
-            echo "errors=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Slack Notification: Errors found
+      - name: Send Slack Notification if there are errors
         if: steps.flake8.outputs.has_errors == 'true'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: danger
-          SLACK_TITLE: "Flake8 Лінтинг — ❌ ПОМИЛКИ"
+          SLACK_TITLE: "Flake8 — ❌ ПОМИЛКИ"
           SLACK_MESSAGE: "❌ Помилки в таких файлах: ${{ steps.flake8.outputs.errors }}"
 
-      - name: Slack Notification: All good
+      - name: Send Slack Notification if all is OK
         if: steps.flake8.outputs.has_errors == 'false'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: good
-          SLACK_TITLE: "Flake8 Лінтинг — ✅ Успішно"
+          SLACK_TITLE: "Flake8 — ✅ Успішно"
           SLACK_MESSAGE: "✅ Ніяких помилок не знайдено"
