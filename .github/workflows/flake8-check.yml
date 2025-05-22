@@ -1,15 +1,27 @@
+name: Daily Flake8 Static Analysis
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # запуск щодня о 09:00 UTC
+  workflow_dispatch:      # ручний запуск через UI
+
 jobs:
   flake8-check:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - run: |
+      - name: Install dependencies and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
           python -m pip install --upgrade pip
           pip install flake8
 
