@@ -1,10 +1,3 @@
-name: Daily Flake8 Static Analysis
-
-on:
-  schedule:
-    - cron: '0 9 * * *'  # щодня о 09:00 UTC
-  workflow_dispatch:      # додатково можна запускати вручну
-
 jobs:
   flake8-check:
     runs-on: ubuntu-latest
@@ -19,7 +12,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install flake8
-          
+
       - id: flake8
         run: |
           flake8 app --exit-zero > flake8_report.txt
@@ -33,6 +26,11 @@ jobs:
             echo "has_errors=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Debug outputs
+        run: |
+          echo "HAS_ERRORS='${{ steps.flake8.outputs.has_errors }}'"
+          echo "REPORT='${{ steps.flake8.outputs.report }}'"
+
       - name: Send result to Slack
         if: always()
         env:
@@ -40,7 +38,7 @@ jobs:
           REPORT: ${{ steps.flake8.outputs.report }}
           HAS_ERRORS: ${{ steps.flake8.outputs.has_errors }}
         run: |
-          if [ "$HAS_ERRORS" = "true" ]; then
+          if [ "${HAS_ERRORS:-false}" = "true" ]; then
             TEXT=":x: Flake8 static analysis found issues:\n\`\`\`${REPORT}\`\`\`"
           else
             TEXT=":white_check_mark: Flake8 static analysis passed with no issues."
