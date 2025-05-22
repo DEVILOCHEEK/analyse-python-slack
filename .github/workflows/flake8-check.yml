@@ -1,41 +1,43 @@
-name: Flake8 Static Analysis with Slack Notification
+name: Flake8 Static Analysis with Slack
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # каждый день в 09:00 UTC
+    - cron: '0 9 * * *'  # щодня о 09:00 UTC
   workflow_dispatch:
 
 jobs:
-  flake8-check:
+  flake8-lint:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install flake8
         run: pip install flake8
 
-      - name: Run flake8
+      - name: Run flake8 and capture output
         id: flake8
         run: |
-          # Запускаем flake8, сохраняем вывод и возвращаем всегда 0 чтобы не ломать job
-          flake8 app > flake8_output.txt || true
+          mkdir -p reports
+          flake8 app --exit-zero > reports/flake8.txt || true
 
-          if [ -s flake8_output.txt ]; then
+          if [ -s reports/flake8.txt ]; then
             echo "has_errors=true" >> $GITHUB_OUTPUT
+            echo "errors=$(cat reports/flake8.txt | cut -d':' -f1 | sort -u | tr '\n' ', ')" >> $GITHUB_OUTPUT
           else
             echo "has_errors=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Slack notification
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: ${{ steps.flake8.outputs.has_errors == 'true' && '🛑 Flake8 found issues. Please check the workflow logs.' || '✅ Flake8 check passed successfully.' }}
-          fields: repo,message,commit,author
+      - name: Send Slack Notification
+        uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: ${{ steps.flake8.outputs.has_errors == 'true' && 'danger' || 'good' }}
+          SLACK_TITLE: "Flake8 Лінтинг"
+          SLACK_MESSAGE: ${{ steps.flake8.outputs.has_errors == 'true' && format('❌ Помилки в таких файлах: {0}', steps.flake8.outputs.errors) || '✅ Ніяких помилок не знайдено' }}
